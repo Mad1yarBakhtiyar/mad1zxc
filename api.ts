@@ -11,6 +11,7 @@ const TEACHERS=[
  {id:104,name:'Сағидуллиев Айдар Асқарұлы',pin:'4211',subjects:[6]},
  {id:105,name:'Хамзин Альтаир Айдарұлы',pin:'9723',subjects:[7]},
 ];
+const STUDENTS=["Абдрагимов Даниял", "Айдаров Бахытжан", "Амангелды Муратали", "Бахтиярұлы Мадияр", "Болатұлы Нариман", "Мұрат Болат", "Сабитбек Абурахман", "Турсунмахамет Абдулазиз"];
 const SUBJECT_NAMES=[
  'Web-программирование и интернет-технологии',
  'Основы объектно-ориентированного программирования',
@@ -21,7 +22,6 @@ const SUBJECT_NAMES=[
  'DevSecOps: Инженерия безопасного программного обеспечения'
 ];
 const STORE='skas-v2-demo-data';
-type DemoTest=Test & {questions?:Attempt['questions']};
 const defaultSubjects:Subject[]=SUBJECT_NAMES.map((name,i)=>({id:i+1,name,description:'Narxoz College · '+name,icon:['🌐','☕','💻','⌨️','🗄️','🎨','🛡️'][i]}));
 const defaultTests:DemoTest[]=structuredClone(seed.tests).map((t:DemoTest,i:number)=>({...t,subject_id:[4,1,5,7,3][i%5],subject:SUBJECT_NAMES[[4,1,5,7,3][i%5]-1]}));
 const stored=(()=>{try{return JSON.parse(localStorage.getItem(STORE)||'null')}catch{return null}})();
@@ -43,6 +43,23 @@ function finish(a:Attempt){if(a.finished)return;const qs=questions[String(a.test
 function view(a:Attempt):Attempt{if(!a.finished&&now()>=a.deadline)finish(a);return {...a,answers:{...a.answers},server_time:now(),questions:(questions[String(a.test_id)]||[]).map(q=>a.finished?{...q}:{id:q.id,text:q.text,options:[...q.options],points:q.points})};}
 export async function api<T>(path:string,method='GET',body?:unknown):Promise<T>{
  await Promise.resolve();const b=(body||{}) as Record<string,any>;
+ if(import.meta.env.VITE_SKAS_BACKEND==='1'&&path.startsWith('/auth/')){
+  if(path==='/auth/logout'){user=null;return {ok:true} as T}
+  if(path==='/auth/me'){
+   const raw=sessionStorage.getItem('skas-user');
+   if(!token.get()||!raw)err('Сессия аяқталды');
+   return JSON.parse(raw) as T;
+  }
+  if(path==='/auth/login'){
+   const id=b.role==='teacher'?TEACHERS.find(t=>t.pin===String(b.code||''))?.id:STUDENTS.indexOf(String(b.name||''))+1;
+   // Teachers authenticate by code only; server checks hashed PIN.
+   const r=await fetch('/api/school?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,pin:String(b.code||'')})});
+   const data=await r.json();if(!r.ok)err(data.error||'Кіру қатесі');
+   sessionStorage.setItem('skas-user',JSON.stringify({...data.user,email:'skas@college.local'}));
+   return {token:data.session,user:{...data.user,email:'skas@college.local'}} as T;
+  }
+ }
+
  if(path==='/auth/login'&&method==='POST'){
   if(b.role==='teacher'){
    const teacher=TEACHERS.find(t=>t.pin===String(b.code||''));
@@ -50,9 +67,10 @@ export async function api<T>(path:string,method='GET',body?:unknown):Promise<T>{
    user={id:teacher!.id,name:teacher!.name,email:'teacher-'+teacher!.id+'@skas.local',role:'teacher'};
   }else{
    const name=String(b.name||'').trim(),group=String(b.group||'').trim();
-   if(name.length<2||group.length<2)err('Аты-жөніңіз бен тобыңызды енгізіңіз');
+   const index=STUDENTS.indexOf(name);
+   if(group!=='БҚ-332'||index<0||String(b.code||'')!==String(index+1).padStart(4,'0'))err('Студент, топ немесе код қате');
    let found=users.find(u=>u.role==='student'&&u.name===name&&u.group===group);
-   if(!found){found={id:++next,name,group,email:group+'@skas.local',role:'student'};users.push(found);save()}
+   if(!found){found={id:index+1,name,group,email:group+'@skas.local',role:'student'};users.push(found);save()}
    user=found;
   }
   return {token:'demo-'+user!.id,user} as unknown as T;
