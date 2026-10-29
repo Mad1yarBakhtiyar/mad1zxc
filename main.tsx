@@ -6,6 +6,7 @@ import{api,token}from'./api';
 import type{User,Subject,Test,Attempt,Result,Draft}from'./types';
 import'./style.css';
 import'./liquid-glass.css';
+import'./reference-theme.css';
 import{GlassCard,GlassButton,GlassInput,GlassSidebar,GlassModal,ThemeToggle}from'./components/glass';
 import learningData from './learning-data.json';
 
@@ -177,3 +178,4 @@ function LearningOverview({user,subjects,onOpen}:{user:User;subjects:Subject[];o
  return <GlassCard className="learning-overview"><div className="panel-head"><h3>Оқу прогресі</h3><button className="icon-button" aria-label="Сабақтарды ашу" onClick={onOpen}><MoreHorizontal size={19}/></button></div><div className="learning-overview-body"><button className="progress-ring" onClick={onOpen} aria-label={'Оқу прогресі '+percent+'%'} style={{'--progress':percent+'%'} as React.CSSProperties}><span><strong>{percent}%</strong><small>{count} / 140 сабақ</small></span></button><div className="course-legend">{learningData.filter(c=>subjects.some(s=>s.id===c.subject_id)).slice(0,4).map((c,i)=><div key={c.subject_id}><i style={{background:['#7fe5d4','#c8efff','#e6c8ff','#91c9ff'][i]}}/><span title={subjects.find(s=>s.id===c.subject_id)?.name}>{["Web-технологии","ООП","Программное ПО","Программирование","Базы данных","Графика","DevSecOps"][c.subject_id-1]}</span><strong>{Math.round(c.lessons.filter(l=>done[l.id]).length/c.lessons.length*100)}%</strong></div>)}</div></div></GlassCard>
 }
 createRoot(document.getElementById('root')!).render(<App/>);
+
