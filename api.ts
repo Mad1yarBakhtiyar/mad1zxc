@@ -36,7 +36,7 @@ const teacherSubjects=()=>user?.role==='teacher'?(TEACHERS.find(t=>t.id===user?.
 const canManage=(subjectId:number)=>user?.role==='teacher'&&teacherSubjects().includes(subjectId);
 const visibleTests=()=>tests.filter(t=>user?.role==='teacher'?canManage(t.subject_id):!!t.published);
 const myAttempts=()=>attempts.filter(a=>user?.role==='teacher'?visibleTests().some(t=>t.id===a.test_id):a.student_id===user?.id);
-const err=(msg:string):never=>{throw new Error(msg)};
+function err(msg:string):never{throw new Error(msg)}
 const now=()=>Date.now()/1000;
 const result=(a:Attempt):Result=>({id:a.id,test_id:a.test_id,title:a.title,subject:a.subject,started:a.started,finished:a.finished,score:a.score,earned:a.earned,total:a.total,passed:a.passed,demo:1,student:users.find(u=>u.id===a.student_id)?.name||'Студент'});
 function finish(a:Attempt){if(a.finished)return;const qs=questions[String(a.test_id)]||[];a.earned=qs.reduce((n,q)=>n+(a.answers[String(q.id)]===q.correct?q.points:0),0);a.total=qs.reduce((n,q)=>n+q.points,0);a.score=a.total?Math.round(a.earned/a.total*10000)/100:0;a.passed=Number(a.score>=a.pass_score);a.finished=Math.min(now(),a.deadline);save();}
@@ -107,13 +107,13 @@ return {
   return users.filter(u=>u.role==='student'&&attempts.some(a=>a.student_id===u.id&&visibleTests().some(t=>t.id===a.test_id))).map(u=>{const aa=attempts.filter(a=>a.student_id===u.id&&a.finished&&visibleTests().some(t=>t.id===a.test_id));return {id:u.id,name:u.name,email:u.group||'',attempts:aa.length,average:aa.length?Math.round(aa.reduce((s,a)=>s+a.score,0)/aa.length):null}}) as unknown as T;
  }
  let m=path.match(/^\/teacher\/tests\/(\d+)$/);
- if(m){if(user.role!=='teacher')err('Оқытушы ретінде кіріңіз');const id=Number(m[1]);const t=tests.find(t=>t.id===id);if(!t||!canManage(t.subject_id))err('Бұл пәнге рұқсатыңыз жоқ');
+ if(m){if(user.role!=='teacher')err('Оқытушы ретінде кіріңіз');const id=Number(m![1]);const t=tests.find(t=>t.id===id);if(!t||!canManage(t.subject_id))err('Бұл пәнге рұқсатыңыз жоқ');
  if(method==='GET')return {...t,questions:questions[String(id)]} as unknown as T;
  if(method==='DELETE'){tests.splice(tests.indexOf(t!),1);delete questions[String(id)];save();return {ok:true} as unknown as T;}
  if(method==='PUT'){if(!canManage(Number(b.subject_id)))err('Бұл пәнге рұқсатыңыз жоқ');Object.assign(t!,b,{subject:subjects.find(s=>s.id===Number(b.subject_id))?.name});questions[String(id)]=b.questions.map((q:any)=>({...q,id:++next}));save();return t as unknown as T;}}
- if(path==='/teacher/tests'&&method==='POST'){if(user.role!=='teacher')err('Оқытушы ретінде кіріңіз');const s=subjects.find(s=>s.id===b.subject_id);if(!s||!canManage(s.id))err('Бұл пәнге рұқсатыңыз жоқ');const id=++next;const t={...b,id,subject:s.name,icon:s.icon,question_count:b.questions.length};tests.push(t);questions[String(id)]=b.questions.map((q:any)=>({...q,id:++next}));save();return t as unknown as T;}
+ if(path==='/teacher/tests'&&method==='POST'){if(user.role!=='teacher')err('Оқытушы ретінде кіріңіз');const s=subjects.find(s=>s.id===b.subject_id);if(!s||!canManage(s.id))err('Бұл пәнге рұқсатыңыз жоқ');const id=++next;const t={...b,id,subject:s.name,icon:s.icon,question_count:b.questions.length} as DemoTest;tests.push(t);questions[String(id)]=b.questions.map((q:any)=>({...q,id:++next}));save();return t as unknown as T;}
  m=path.match(/^\/tests\/(\d+)\/start$/);
- if(m&&method==='POST'){if(user.role!=='student')err('Студент ретінде кіріңіз');const t=tests.find(t=>t.id===Number(m[1]));if(!t||!t.published)err('Тест қолжетімсіз');const old=attempts.find(a=>a.test_id===t.id&&a.student_id===user?.id&&!a.finished);if(old)return view(old) as unknown as T;const started=now();const a:Attempt={id:++next,student_id:user.id,test_id:t.id,title:t.title,subject:t.subject,questions:[],answers:{},started,deadline:started+t.duration*60,server_time:started,finished:null,score:0,earned:0,total:0,passed:0,demo:1,pass_score:t.pass_score};attempts.push(a);save();return view(a) as unknown as T;}
+ if(m&&method==='POST'){if(user.role!=='student')err('Студент ретінде кіріңіз');const t=tests.find(t=>t.id===Number(m![1]));if(!t||!t.published)err('Тест қолжетімсіз');const old=attempts.find(a=>a.test_id===t.id&&a.student_id===user?.id&&!a.finished);if(old)return view(old) as unknown as T;const started=now();const a:Attempt={id:++next,student_id:user.id,test_id:t.id,title:t.title,subject:t.subject,questions:[],answers:{},started,deadline:started+t.duration*60,server_time:started,finished:null,score:0,earned:0,total:0,passed:0,demo:1,pass_score:t.pass_score};attempts.push(a);save();return view(a) as unknown as T;}
  m=path.match(/^\/attempts\/(\d+)(?:\/(answers|submit))?$/);
  if(m){const a=attempts.find(a=>a.id===Number(m![1]));if(!a||!(user.role==='student'?a.student_id===user.id:visibleTests().some(t=>t.id===a.test_id)))err('Қолжетімсіз');if(!a!.finished&&b.answers){a!.answers={...b.answers};save()};if(m[2]==='submit')finish(a!);return view(a!) as unknown as T;}
  return err('Демо функция табылмады: '+path);

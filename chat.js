@@ -1,7 +1,2 @@
-export default async function handler(req,res){
- if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
- if(!process.env.OPENAI_API_KEY)return res.status(503).json({error:'SKAS AI әзірге бапталмаған. Vercel ішіне OPENAI_API_KEY қосыңыз.'});
- const messages=req.body?.messages;
- if(!Array.isArray(messages)||messages.length>12||messages.some(m=>!['user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>2000))return res.status(400).json({error:'Invalid messages'});
- try{const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},body:JSON.stringify({model:process.env.OPENAI_MODEL||'gpt-4.1-mini',instructions:'You are SKAS AI, a helpful educational tutor. Reply in the language of the student (Kazakh, Russian or English). Explain concepts, help students learn, do not claim access to private test results or database. Be concise.',input:messages.map(m=>({role:m.role,content:m.content})),max_output_tokens:650})});const data=await response.json();if(!response.ok)return res.status(502).json({error:'AI provider error ('+response.status+'). Check API billing and model access.'});const reply=(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text).join('\n');return res.status(200).json({reply:reply||'Жауап алынбады.'})}catch{return res.status(502).json({error:'AI қызметіне қосылу мүмкін болмады'})}
-}
+// Preserve the original handler and expose it at the URL used by the client.
+export {default} from '../chat.js';
