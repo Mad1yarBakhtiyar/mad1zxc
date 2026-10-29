@@ -46,17 +46,31 @@ export async function api<T>(path:string,method='GET',body?:unknown):Promise<T>{
  if(import.meta.env.VITE_SKAS_BACKEND==='1'&&path.startsWith('/auth/')){
   if(path==='/auth/logout'){user=null;return {ok:true} as T}
   if(path==='/auth/me'){
-   const raw=sessionStorage.getItem('skas-user');
-   if(!token.get()||!raw)err('Сессия аяқталды');
-   return JSON.parse(raw) as T;
-  }
+  const raw = sessionStorage.getItem('skas-user');
+
+  if(!token.get() || !raw)
+    err('Сессия аяқталды');
+
+  user = JSON.parse(raw) as User;
+
+  return user as T;
+}
   if(path==='/auth/login'){
    const id=b.role==='teacher'?TEACHERS.find(t=>t.pin===String(b.code||''))?.id:STUDENTS.indexOf(String(b.name||''))+1;
    // Teachers authenticate by code only; server checks hashed PIN.
    const r=await fetch('/api/school?action=login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,pin:String(b.code||'')})});
    const data=await r.json();if(!r.ok)err(data.error||'Кіру қатесі');
-   sessionStorage.setItem('skas-user',JSON.stringify({...data.user,email:'skas@college.local'}));
-   return {token:data.session,user:{...data.user,email:'skas@college.local'}} as T;
+   user = {
+  ...data.user,
+  email: 'skas@college.local'
+};
+
+sessionStorage.setItem('skas-user', JSON.stringify(user));
+
+return {
+  token: data.session,
+  user
+} as T;
   }
  }
 
